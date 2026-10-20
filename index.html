@@ -67,6 +67,7 @@ main{flex:1;min-height:0;position:relative}
 .node.root{border:1.5px solid var(--ink);border-radius:10px}
 .node.sel{outline:2px solid var(--accent);outline-offset:3px}
 .node.msel{outline:2px solid var(--accent);outline-offset:3px}
+@media (pointer:coarse){#world .node{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}#world .node [contenteditable=true]{-webkit-user-select:text;user-select:text}}
 #stage.space,#stage.space *{cursor:grab!important}#stage.panning,#stage.panning *{cursor:grabbing!important}
 .marq{position:absolute;z-index:6;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);pointer-events:none;border-radius:2px}
 /* таблица на холсте; min-width сбрасываем — общий стиль таблиц (трекер) давал 560px и таблица вылезала за блок */
@@ -1393,7 +1394,7 @@ document.querySelectorAll('#themeSeg .tab').forEach(x=>x.onclick=()=>applyTheme(
 applyTheme(theme);
 
 /* ---------- настройки устройства (интерфейс) ---------- */
-const APP_NAME='Мастерская',APP_VER='6.2';
+const APP_NAME='Мастерская',APP_VER='6.3';
 const prefs={start:'last',zoom:1,hints:true,grid:false,sound:true,confirm:true,layers:false};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(LS_KEY+'-prefs')||'{}'))}catch(e){}
 function savePrefs(){try{localStorage.setItem(LS_KEY+'-prefs',JSON.stringify(prefs))}catch(e){}}
@@ -1502,9 +1503,13 @@ try{const c=JSON.parse(localStorage.getItem(LS_KEY+'-ccfg2')||'{}');Object.keys(
 const saveCC=()=>{try{localStorage.setItem(LS_KEY+'-ccfg2',JSON.stringify(CC))}catch(e){}};
 let cEraseMode='all';
 
+/* рисуем только блоки рядом с экраном: остальные скрыты и не нагружают перемещение по полю */
+let cullT=0;const cullSoon=()=>{if(cullT)return;cullT=setTimeout(()=>{cullT=0;cullNodes()},120)};
+function cullNodes(){if($('#canvas').hidden)return;const v=V(),r=stage.getBoundingClientRect();if(!r.width)return;const m=Math.max(r.width,r.height)*.6,x0=(-v.x-m)/v.k,y0=(-v.y-m)/v.k,x1=(r.width-v.x+m)/v.k,y1=(r.height-v.y+m)/v.k;
+  world.querySelectorAll(':scope>.node').forEach(el=>{const n=nodeById(el.dataset.id);if(!n)return;const w=n.w||200,h=n.h||+el.dataset.h||300,on=n.x<x1&&n.x+w>x0&&n.y<y1&&n.y+h>y0||el.classList.contains('sel');if(on&&el.style.display==='none'){el.style.display=''}else if(!on&&el.style.display!=='none'){el.dataset.h=el.offsetHeight||300;el.style.display='none'}})}
 function applyView(){
   const v=V();
-  world.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;
+  world.style.transform=`translate(${v.x}px,${v.y}px) scale(${v.k})`;cullSoon();
   const g=24*v.k;stage.style.backgroundSize=g+'px '+g+'px';stage.style.backgroundPosition=v.x+'px '+v.y+'px';
   $('#zoomVal').textContent=Math.round(v.k*100)+'%';
   if(S.canvas.rulers&&S.canvas.rulers.length&&cLastK!==v.k){cLastK=v.k;cRenderOver()}
@@ -1587,7 +1592,7 @@ function renderNodes(){
   S.canvas.nodes.filter(isF).concat(S.canvas.nodes.filter(n=>!isF(n))).forEach(n=>world.appendChild(nodeEl(n)));
   applyView();drawLinks();updateTools();renderWInk();cRenderOver();cRenderLayers();
 }
-function boxOf(n){const el=world.querySelector(`.node[data-id="${n.id}"]`);return {x:n.x,y:n.y,w:el?el.offsetWidth:(n.w||200),h:el?el.offsetHeight:(n.h||60)}}
+function boxOf(n){const el=world.querySelector(`.node[data-id="${n.id}"]`),hid=el&&el.style.display==='none';return {x:n.x,y:n.y,w:el&&!hid?el.offsetWidth:(n.w||200),h:el&&!hid?el.offsetHeight:(n.h||+(el&&el.dataset.h)||60)}}
 function clip(b,tx,ty){const cx=b.x+b.w/2,cy=b.y+b.h/2,dx=tx-cx,dy=ty-cy;if(!dx&&!dy)return[cx,cy];const s=Math.min(Math.abs((b.w/2+6)/(dx||1e-9)),Math.abs((b.h/2+6)/(dy||1e-9)));return[cx+dx*s,cy+dy*s]}
 function arrowPath(a,b,cls){
   const [x1,y1]=clip(a,b.x+b.w/2,b.y+b.h/2),[x2,y2]=clip(b,a.x+a.w/2,a.y+a.h/2);
@@ -1681,7 +1686,7 @@ $('#addMedia').onclick=()=>pickMedia({canvas:true});
 let armed=null;
 function disarm(){armed=null;const d=$('#delNode');d.classList.remove('armed');d.textContent='Удалить'}
 $('#delNode').onclick=()=>{
-  if(msel.size>1||mInk.size){delMulti();return}
+  if(msel.size>1||mInk.size||(sel&&frameContent(sel).nodes.length&&nodeById(sel).shape)){delMulti();return}
   if(!sel)return;
   const locked=family(sel).map(nodeById).filter(n=>n&&n.lk);if(locked.length){toast('Блок закреплён — сначала открепи его (замок)');return}
   if(armed!==sel){armed=sel;const d=$('#delNode');d.classList.add('armed');const f=family(sel).length;d.textContent=f>1?`Удалить ${f}?`:'Точно?';return}
@@ -1719,7 +1724,7 @@ function startNodeDrag(e,n){
   if(n.lk){toast('Блок закреплён — открепи его замком, чтобы двигать',null,null,2200);return}
   const grip=e.currentTarget;try{grip.setPointerCapture(e.pointerId)}catch(err){}
   const grp=msel.size>1&&msel.has(n.id);
-  let ids=(grp?[...new Set([...msel].flatMap(i=>family(i)))]:family(n.id)).filter(id=>nodeById(id)&&!nodeById(id).lk),inkIn=grp?S.canvas.ink.filter((s,i)=>mInk.has(i)).map(s=>({s,p:s.p.slice()})):[];
+  let ids=(grp?[...new Set([...msel].flatMap(i=>family(i).concat(frameContent(i).nodes)))]:family(n.id)).filter(id=>nodeById(id)&&!nodeById(id).lk),inkIn=grp?S.canvas.ink.filter((s,i)=>mInk.has(i)||[...msel].some(f=>frameContent(f).ink.includes(i))).map(s=>({s,p:s.p.slice()})):[];
   if(!grp&&n.shape&&n.shape.k==='frame'){const fb={x:n.x,y:n.y,w:n.w,h:n.h},inside=b=>b.x>=fb.x-2&&b.y>=fb.y-2&&b.x+b.w<=fb.x+fb.w+2&&b.y+b.h<=fb.y+fb.h+2;
     S.canvas.nodes.forEach(m=>{if(m!==n&&!m.lk&&!(m.shape&&m.shape.k==='frame')&&inside(boxOf(m))&&!ids.includes(m.id))ids.push(m.id)});
     inkIn=S.canvas.ink.filter(s=>{if(!s.p)return false;for(let i=0;i<s.p.length;i+=3)if(s.p[i]<fb.x||s.p[i]>fb.x+fb.w||s.p[i+1]<fb.y||s.p[i+1]>fb.y+fb.h)return false;return true}).map(s=>({s,p:s.p.slice()}))}
@@ -1727,8 +1732,9 @@ function startNodeDrag(e,n){
   const sx=e.clientX,sy=e.clientY;let moved=false,ldx=0,ldy=0,inkRaf=0;
   const moveInk=()=>{inkRaf=0;inkIn.forEach(o=>{for(let i=0;i<o.p.length;i+=3){o.s.p[i]=r1(o.p[i]+ldx);o.s.p[i+1]=r1(o.p[i+1]+ldy)}});renderWInk()};
   const mv=ev=>{const k=V().k,dx=(ev.clientX-sx)/k,dy=(ev.clientY-sy)/k;if(Math.abs(dx)+Math.abs(dy)>1)moved=true;const ddx=snapV(start[0].x+dx)-start[0].x,ddy=snapV(start[0].y+dy)-start[0].y;ldx=ddx;ldy=ddy;start.forEach(s=>{s.m.x=Math.round(s.x+ddx);s.m.y=Math.round(s.y+ddy);s.el.style.left=s.m.x+'px';s.el.style.top=s.m.y+'px'});drawLinks();if(inkIn.length&&!inkRaf)inkRaf=requestAnimationFrame(moveInk)};
-  const up=()=>{grip.removeEventListener('pointermove',mv);grip.removeEventListener('pointerup',up);grip.removeEventListener('pointercancel',up);if(inkIn.length)moveInk();if(moved)touch()};
+  const up=c=>{grip.removeEventListener('pointermove',mv);grip.removeEventListener('pointerup',up);grip.removeEventListener('pointercancel',up);nodeDragUndo=null;if(c===true)return;if(inkIn.length)moveInk();if(moved)touch()};
   grip.addEventListener('pointermove',mv);grip.addEventListener('pointerup',up);grip.addEventListener('pointercancel',up);
+  nodeDragUndo=()=>{start.forEach(s=>{s.m.x=s.x;s.m.y=s.y;if(s.el){s.el.style.left=s.x+'px';s.el.style.top=s.y+'px'}});inkIn.forEach(o=>o.s.p=o.p.slice());drawLinks();renderWInk();up(true)};
 }
 /* размер меняем на месте: пересоздание блока на каждом движении отрывало палец/мышь от ручки */
 function nodeFit(n,el){el.style.left=n.x+'px';el.style.top=n.y+'px';el.style.width=(n.w||200)+'px';if(n.shape){el.style.height=Math.max(1,n.h||1)+'px';const sv=el.querySelector(':scope>.sv');if(sv){sv.setAttribute('viewBox',`0 0 ${Math.max(1,n.w)} ${Math.max(1,n.h||1)}`);sv.innerHTML=shapeSvg(n)}}drawLinks()}
@@ -1743,6 +1749,17 @@ function startResize(e,n,el){
 }
 
 const pts=new Map();let pan=null,pinch=null;
+/* два пальца на телефоне — всегда только масштаб и сдвиг поля: начатое перетаскивание блока отменяется, текст не выделяется */
+const tps=new Map();let tGest=null,nodeDragUndo=null;
+stage.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;tps.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(tps.size===2&&!CDRAW.includes(cTool)){const [a,b]=[...tps.values()];tGest={d:Math.hypot(a.x-b.x,a.y-b.y),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};
+    if(nodeDragUndo)nodeDragUndo();const ae=document.activeElement;if(ae&&ae.isContentEditable)ae.blur();try{getSelection().removeAllRanges()}catch(err){}
+    pts.clear();pan=null;pinch=null;stage.classList.remove('panning');e.stopPropagation();e.preventDefault();try{stage.setPointerCapture(e.pointerId)}catch(err){}}
+  else if(tGest)e.stopPropagation()},true);
+stage.addEventListener('pointermove',e=>{if(e.pointerType!=='touch'||!tps.has(e.pointerId))return;tps.set(e.pointerId,{x:e.clientX,y:e.clientY});if(!tGest)return;e.stopPropagation();e.preventDefault();
+  if(tps.size<2)return;const [a,b]=[...tps.values()],d=Math.hypot(a.x-b.x,a.y-b.y),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2,v=V();v.x+=cx-tGest.cx;v.y+=cy-tGest.cy;if(d>0&&tGest.d>0)zoomAt(d/tGest.d,cx,cy);else applyView();tGest.d=d;tGest.cx=cx;tGest.cy=cy},true);
+const tEnd=e=>{if(e.pointerType!=='touch')return;tps.delete(e.pointerId);if(tGest){e.stopPropagation();if(!tps.size){tGest=null;viewChanged()}}};
+stage.addEventListener('pointerup',tEnd,true);stage.addEventListener('pointercancel',tEnd,true);
 const onFrameBody=e=>{const nd=e.target.closest('.node');return nd&&nd.classList.contains('frame')&&!!e.target.closest('.sv')};
 stage.addEventListener('pointerdown',e=>{
   const nd=e.target.closest('.node'),tpan=nd&&e.pointerType==='touch'&&nd.dataset.id!==sel&&!e.target.closest('.nadd,.zm,.hd,.roth,.rz,.add');
@@ -1765,13 +1782,18 @@ stage.addEventListener('pointermove',e=>{
 function marqEnd(e){const g=marq;marq=null;$('#marq').hidden=true;if(!g)return;
   if(Math.abs(g.x-g.x0)+Math.abs(g.y-g.y0)<=4){if(g.frame)select(g.frame);else if(!g.add)select(null);return}
   const [ax,ay]=screenToWorld(Math.min(g.x0,g.x),Math.min(g.y0,g.y)),[bx,by]=screenToWorld(Math.max(g.x0,g.x),Math.max(g.y0,g.y));
-  const ids=S.canvas.nodes.filter(n=>{if(n.lk)return false;const b=boxOf(n);if(n.shape&&n.shape.k==='frame')return b.x>=ax&&b.y>=ay&&b.x+b.w<=bx&&b.y+b.h<=by;return b.x<bx&&b.x+b.w>ax&&b.y<by&&b.y+b.h>ay}).map(n=>n.id);
-  const ink=[];S.canvas.ink.forEach((s,i)=>{if(s.t==='erase'||!s.p)return;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(let k=0;k<s.p.length;k+=3){x0=Math.min(x0,s.p[k]);y0=Math.min(y0,s.p[k+1]);x1=Math.max(x1,s.p[k]);y1=Math.max(y1,s.p[k+1])}if(x0>=ax&&y0>=ay&&x1<=bx&&y1<=by)ink.push(i)});
+  /* лист попадает в выбор, если рамка накрыла больше половины его площади — тогда он уйдёт вместе со всем содержимым; иначе выбираются только элементы в рамке */
+  const ids=S.canvas.nodes.filter(n=>{if(n.lk)return false;const b=boxOf(n);if(n.shape&&n.shape.k==='frame'){const ix=Math.max(0,Math.min(bx,b.x+b.w)-Math.max(ax,b.x)),iy=Math.max(0,Math.min(by,b.y+b.h)-Math.max(ay,b.y));return ix*iy>.5*b.w*b.h}return b.x<bx&&b.x+b.w>ax&&b.y<by&&b.y+b.h>ay}).map(n=>n.id);
+  const ink=[];S.canvas.ink.forEach((s,i)=>{if(s.t==='erase'||!s.p)return;const bb=inkBox(s),cx=(bb.x0+bb.x1)/2,cy=(bb.y0+bb.y1)/2;if(cx>=ax&&cx<=bx&&cy>=ay&&cy<=by)ink.push(i)});
   if(!ids.length&&!ink.length){if(!g.add)select(null);return}setMulti(ids,ink,g.add)}
 stage.addEventListener('pointerup',e=>{if(marq)marqEnd(e)});stage.addEventListener('pointercancel',()=>{marq=null;$('#marq').hidden=true});
 /* удалить всё выбранное разом */
-function delMulti(){const ids=new Set([...msel].flatMap(i=>family(i)).filter(i=>{const n=nodeById(i);return n&&!n.lk})),inkN=mInk.size;if(!ids.size&&!inkN)return false;
-  const gone=S.canvas.nodes.filter(n=>ids.has(n.id));S.canvas.nodes=S.canvas.nodes.filter(n=>!ids.has(n.id));S.canvas.links=S.canvas.links.filter(l=>!ids.has(l.a)&&!ids.has(l.b));S.canvas.ink=S.canvas.ink.filter((s,i)=>!mInk.has(i));
+function inkBox(s){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;if(s.p)for(let k=0;k<s.p.length;k+=3){x0=Math.min(x0,s.p[k]);y0=Math.min(y0,s.p[k+1]);x1=Math.max(x1,s.p[k]);y1=Math.max(y1,s.p[k+1])}return {x0,y0,x1,y1}}
+/* всё, что лежит на листе целиком: блоки и линии */
+function frameContent(id){const f=nodeById(id);if(!f||!f.shape||f.shape.k!=='frame')return {nodes:[],ink:[]};const fb={x:f.x,y:f.y,w:f.w,h:f.h},ins=b=>b.x>=fb.x-2&&b.y>=fb.y-2&&b.x+b.w<=fb.x+fb.w+2&&b.y+b.h<=fb.y+fb.h+2;
+  return {nodes:S.canvas.nodes.filter(m=>m!==f&&!m.lk&&!(m.shape&&m.shape.k==='frame')&&ins(boxOf(m))).map(m=>m.id),ink:S.canvas.ink.map((s,i)=>{if(!s.p)return -1;const b=inkBox(s);return b.x0>=fb.x&&b.y0>=fb.y&&b.x1<=fb.x+fb.w&&b.y1<=fb.y+fb.h?i:-1}).filter(i=>i>=0)}}
+function delMulti(){const inkS=new Set(mInk);const ids=new Set([...msel].flatMap(i=>{const fc=frameContent(i);fc.ink.forEach(k=>inkS.add(k));return family(i).concat(fc.nodes)}).filter(i=>{const n=nodeById(i);return n&&!n.lk})),inkN=inkS.size;if(!ids.size&&!inkN)return false;
+  const gone=S.canvas.nodes.filter(n=>ids.has(n.id));S.canvas.nodes=S.canvas.nodes.filter(n=>!ids.has(n.id));S.canvas.links=S.canvas.links.filter(l=>!ids.has(l.a)&&!ids.has(l.b));S.canvas.ink=S.canvas.ink.filter((s,i)=>!inkS.has(i));
   msel=new Set();mInk=new Set();sel=null;disarm();renderNodes();touch();purgeLater(gone.filter(n=>n.media).map(n=>n.media));toast(`Удалено: ${gone.length?gone.length+' '+plural(gone.length,'объект','объекта','объектов'):''}${gone.length&&inkN?' и ':''}${inkN?inkN+' '+plural(inkN,'линия','линии','линий'):''}`,'Отменить',()=>stepUndo(true));return true}
 function endPt(e){if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(pts.size===0){pan=null;stage.classList.remove('panning');viewChanged()}else if(pts.size===1){const p=[...pts.values()][0];pan={x:p.x,y:p.y,vx:V().x,vy:V().y}}}
 stage.addEventListener('pointerup',endPt);stage.addEventListener('pointercancel',endPt);
@@ -1979,7 +2001,7 @@ document.addEventListener('keydown',e=>{
   if($('#canvas').hidden||openSheet||e.ctrlKey||e.metaKey||e.altKey)return;const a=document.activeElement;if(a&&(a.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))return;
   const key=e.code.replace(/^Key/,'').toLowerCase(),m={v:'select',h:'hand',p:'pen',b:'brush',m:'marker',n:'pencil',e:'eraser',f:'frame',c:'link',t:'text'}[key],sh={r:'rect',o:'ellipse',l:'line',a:'arrow'}[key];
   if(sh){cShapeK=sh;setCTool('shape');e.preventDefault()}else if(key==='g'){$('#cEls').hidden=false;renderEls();e.preventDefault()}else if(m){setCTool(m);e.preventDefault()}
-  else if(e.key==='Delete'||e.key==='Backspace'){if(msel.size>1||mInk.size){e.preventDefault();delMulti()}else if(sel){e.preventDefault();if(armed!==sel)$('#delNode').click();$('#delNode').click()}}
+  else if(e.key==='Delete'||e.key==='Backspace'){if(msel.size>1||mInk.size||(sel&&nodeById(sel)&&nodeById(sel).shape&&nodeById(sel).shape.k==='frame')){e.preventDefault();delMulti()}else if(sel){e.preventDefault();if(armed!==sel)$('#delNode').click();$('#delNode').click()}}
   else if(e.key==='Escape'){$('#cEls').hidden=true;if(cTool!=='select')setCTool('select');select(null)}
 });
 /* Ctrl+A — выбрать всё на холсте; пробел — временная «рука» */
@@ -2229,7 +2251,7 @@ const HELP=[
    '<b>Файлы.</b> Фото и видео показываются прямо в блоке, у PDF — первая страница, у документов — значок с именем. ⤢ открывает крупно: PDF листается, документ Word показывается текстом, презентацию можно открыть во вкладке «Презентации», любой файл — скачать.',
    '<b>Таблица.</b> «+ Таблица» на панели ставит таблицу прямо на холст: ячейки правятся на месте, Tab — следующая ячейка (в последней — новая строка). Внизу — «+ Строка», «+ Столбец», удаление, шапка и 7 цветов.',
    '<b>На телефоне.</b> Палец по полю или по невыбранному блоку двигает холст — блоки случайно не съезжают. Касание выбирает блок; выбранный тянется за полоску сверху, размер — за уголок, второе касание по тексту — правка. Синие «+» по сторонам добавляют связанный блок; пустой блок убирается сам. Над клавиатурой — «Удалить блок», «+ Блок ниже», «Готово».',
-   '<b>Мышь, как в Figma.</b> Левая кнопка по пустому месту — рамка выделения (с Shift — добавить к выбранному), Shift+клик — добавить или убрать блок, Ctrl+A — выбрать всё. Delete удаляет всё выбранное разом (Ctrl+Z вернёт), выбранное тянется вместе. Поле: колесо — вверх-вниз, Shift + колесо — вбок, Ctrl + колесо — масштаб, пробел или средняя кнопка + мышь — двигать.',
+   '<b>Мышь, как в Figma.</b> Левая кнопка по пустому месту — рамка выделения (с Shift — добавить к выбранному), Shift+клик — добавить или убрать блок, Ctrl+A — выбрать всё. Delete удаляет всё выбранное разом — блоки, фигуры, таблицы, файлы, линии (Ctrl+Z вернёт). Лист попадает в выбор, если рамка накрыла больше половины его площади, и тогда удаляется вместе со всем, что на нём; если меньше — удаляется только то, что в рамке. Выбранное тянется вместе. Поле: колесо — вверх-вниз, Shift + колесо — вбок, Ctrl + колесо — масштаб, пробел или средняя кнопка + мышь — двигать.',
    '<b>Слои и замок.</b> «Слои» открывают слева список всех блоков с поиском: клик — перейти к блоку, замок — закрепить. Закреплённый блок нельзя сдвинуть, изменить или удалить, пока не откроешь замок. Колесо мыши — прокрутка, Ctrl + колесо или щипок — масштаб, «Показать всё» вписывает всё в экран.']],
  ['Трекер',['Клетка дня — отметить привычку','Поле «Новая задача» — добавить; карточку тянуть за точки','⋯ на карточке — срок, напоминание, повтор, приоритет, метки, чек-лист, файлы','Поиск и фильтры над доской'],
   ['<b>Привычки.</b> Таблица показывает последние 7 дней; клик по клетке ставит или снимает отметку. «Серия» — сколько дней подряд выполнено, «Неделя» — процент за 7 дней. × удаляет привычку (нужно нажать дважды).',

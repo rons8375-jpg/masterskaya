@@ -1,5 +1,5 @@
 /* Мастерская: офлайн-работа. Само приложение и значки — из кэша сразу, шрифты и библиотеки — кэшируются при первом использовании. */
-const V = 'masterskaya-v6.2.0', CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-mask-512.png'];
+const V = 'masterskaya-v6.3.0', CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-mask-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(CORE)).then(() => self.skipWaiting())) });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())) });
 self.addEventListener('fetch', e => {
