@@ -66,7 +66,9 @@ main{flex:1;min-height:0;position:relative}
 .node{position:absolute;background:var(--node-bg);color:var(--sticker-ink);border-radius:6px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.06)}
 .node.root{border:1.5px solid var(--ink);border-radius:10px}
 .node.sel{outline:2px solid var(--accent);outline-offset:3px}
-/* таблица на холсте */
+/* таблица на холсте; min-width сбрасываем — общий стиль таблиц (трекер) давал 560px и таблица вылезала за блок */
+.ctbl,.ptbl,.dcpage table{min-width:0;max-width:100%}
+.node.tablen{min-width:200px}
 .node.tablen>.txt{display:none}.node.tablen{padding-bottom:4px}
 .ctbl{width:calc(100% - 12px);margin:0 6px 4px;border-collapse:separate;border-spacing:0;font-size:14px;border:1px solid var(--tl);border-radius:10px;overflow:hidden;table-layout:fixed;background:var(--node-bg)}
 .ctbl th,.ctbl td{padding:7px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--tl);border-right:1px solid var(--tl);outline:none;word-break:break-word;min-height:1.4em;text-transform:none;letter-spacing:0;color:inherit;font-weight:400;font-size:inherit}
@@ -1388,7 +1390,7 @@ document.querySelectorAll('#themeSeg .tab').forEach(x=>x.onclick=()=>applyTheme(
 applyTheme(theme);
 
 /* ---------- настройки устройства (интерфейс) ---------- */
-const APP_NAME='Мастерская',APP_VER='6.1';
+const APP_NAME='Мастерская',APP_VER='6.1.1';
 const prefs={start:'last',zoom:1,hints:true,grid:false,sound:true,confirm:true,layers:false};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(LS_KEY+'-prefs')||'{}'))}catch(e){}
 function savePrefs(){try{localStorage.setItem(LS_KEY+'-prefs',JSON.stringify(prefs))}catch(e){}}
@@ -4375,7 +4377,13 @@ function tblOp(id,op){
   else if(op==='head')T.hd=T.hd===false;
   tblFocus=Object.assign({id},f);renderNodes();touch();cToolbar();
 }
-function addTableNode(){const [x,y]=viewCenter();const n={id:uid(),x:Math.round(x-240),y:Math.round(y-90),w:480,text:'',color:'white',parent:null,table:{r:[['Задача','Срок','Статус'],['','',''],['','',''],['','','']],hd:true,th:'blue'}};S.canvas.nodes.push(n);sel=n.id;setCTool('select');renderNodes();touch();
+function addTableNode(){const [cx,cy]=viewCenter(),w=480,h=190;let x=Math.round(cx-w/2),y=Math.round(cy-h/2);
+  /* свободное место рядом с центром экрана, чтобы таблица не легла поверх блоков */
+  const hit=(x,y)=>S.canvas.nodes.some(m=>{if(m.shape&&m.shape.k==='frame')return false;const b=boxOf(m);return x<b.x+b.w+24&&x+w+24>b.x&&y<b.y+b.h+24&&y+h+24>b.y});
+  for(let i=0;i<40&&hit(x,y);i++){const a=i*.9,r=60+i*28;x=Math.round(cx-w/2+Math.cos(a)*r);y=Math.round(cy-h/2+Math.sin(a)*r)}
+  const n={id:uid(),x,y,w,text:'',color:'white',parent:null,table:{r:[['Задача','Срок','Статус'],['','',''],['','',''],['','','']],hd:true,th:'blue'}};S.canvas.nodes.push(n);sel=n.id;setCTool('select');
+  /* показать таблицу в читаемом масштабе */
+  const v=V(),r=stage.getBoundingClientRect(),k=Math.min(1,(r.width-32)/w);v.k=k;v.x=Math.round(r.width/2-(x+w/2)*k);v.y=Math.round(r.height*.42-(y+h/2)*k);renderNodes();viewChanged();touch();
   requestAnimationFrame(()=>{const c=world.querySelector(`.node[data-id="${n.id}"] .ctbl td`);if(c&&!isTouchUI())c.focus()});toast('Таблица добавлена: Tab — следующая ячейка, панель снизу — строки, столбцы и цвет',null,null,3500)}
 $('#addTable').onclick=addTableNode;
 $('#ctTheme').innerHTML=Object.entries(TBL_TH).map(([k,[l]])=>`<option value="${k}">${l}</option>`).join('');
