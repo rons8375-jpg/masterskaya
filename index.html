@@ -55,7 +55,7 @@ main{flex:1;min-height:0;position:relative}
 .banner b{color:var(--ink);font-weight:600}
 
 /* Холст */
-#stage{overflow:hidden;touch-action:none;cursor:grab;background-color:var(--bg);background-image:radial-gradient(circle,var(--dot) 1.3px,transparent 1.5px)}
+#stage{overflow:hidden;touch-action:none;cursor:default;background-color:var(--bg);background-image:radial-gradient(circle,var(--dot) 1.3px,transparent 1.5px)}
 #stage.panning{cursor:grabbing}
 #stage.fover{box-shadow:inset 0 0 0 3px var(--accent)}
 #world{position:absolute;left:0;top:0;transform-origin:0 0}
@@ -66,6 +66,9 @@ main{flex:1;min-height:0;position:relative}
 .node{position:absolute;background:var(--node-bg);color:var(--sticker-ink);border-radius:6px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.06)}
 .node.root{border:1.5px solid var(--ink);border-radius:10px}
 .node.sel{outline:2px solid var(--accent);outline-offset:3px}
+.node.msel{outline:2px solid var(--accent);outline-offset:3px}
+#stage.space,#stage.space *{cursor:grab!important}#stage.panning,#stage.panning *{cursor:grabbing!important}
+.marq{position:absolute;z-index:6;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);pointer-events:none;border-radius:2px}
 /* таблица на холсте; min-width сбрасываем — общий стиль таблиц (трекер) давал 560px и таблица вылезала за блок */
 .ctbl,.ptbl,.dcpage table{min-width:0;max-width:100%}
 .node.tablen{min-width:200px}
@@ -589,14 +592,14 @@ header .tabs{max-width:100%;overflow-x:auto;scrollbar-width:none}
 
     <section class="view" id="canvas">
       <div id="stage" class="view">
-        <div id="world"><svg id="links"></svg><svg id="wInk"></svg><svg id="wOver"></svg></div>
+        <div id="world"><svg id="links"></svg><svg id="wInk"></svg><svg id="wOver"></svg></div><div class="marq" id="marq" hidden></div>
       </div>
       <aside class="layers" id="cLayers" hidden aria-label="Слои холста">
         <div class="lh"><b>Слои</b><button class="x" id="cLayersX" aria-label="Скрыть слои">×</button></div>
         <div style="padding:0 8px 6px"><input class="inp" id="cLayerQ" type="search" placeholder="Найти блок" aria-label="Найти блок" style="width:100%"></div>
         <div class="ll" id="cLayerList"></div>
       </aside>
-      <div class="hint">Двойной клик по полю — новый блок. Тяни за полоску сверху блока, за уголок — размер. Файлы перетащи на поле или вставь Ctrl+V. Колесо — прокрутка, Ctrl + колесо или щипок — масштаб. Инструменты — внизу.</div>
+      <div class="hint">Двойной клик по полю — новый блок. Рамка мышью — выделить несколько, Delete — удалить. Пробел или средняя кнопка — двигать поле. Файлы перетащи на поле или вставь Ctrl+V. Колесо — прокрутка, Ctrl + колесо или щипок — масштаб. Инструменты — внизу.</div>
       <div class="ctools" id="cRail" aria-label="Инструменты"></div>
       <div class="cels" id="cEls" hidden role="dialog" aria-label="Элементы"><div class="lh"><b id="cElsT">Элементы</b><button class="x" id="cElsX" aria-label="Закрыть">×</button></div><div class="celsg" id="cElsG"></div></div>
       <div class="toolbar">
@@ -1390,7 +1393,7 @@ document.querySelectorAll('#themeSeg .tab').forEach(x=>x.onclick=()=>applyTheme(
 applyTheme(theme);
 
 /* ---------- настройки устройства (интерфейс) ---------- */
-const APP_NAME='Мастерская',APP_VER='6.1.1';
+const APP_NAME='Мастерская',APP_VER='6.2';
 const prefs={start:'last',zoom:1,hints:true,grid:false,sound:true,confirm:true,layers:false};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem(LS_KEY+'-prefs')||'{}'))}catch(e){}
 function savePrefs(){try{localStorage.setItem(LS_KEY+'-prefs',JSON.stringify(prefs))}catch(e){}}
@@ -1522,7 +1525,7 @@ function nodeEl(n){
   const el=document.createElement('div');
   const vis=n.media||n.draw;
   const fr=n.shape&&n.shape.k==='frame',boxy=n.shape||n.ftext;
-  el.className='node c-'+(n.color||'yellow')+(n.parent?'':' root')+(vis?' media':'')+(n.shape?' shape':'')+(fr?' frame':'')+(n.ftext?' ftext':'')+(n.lk?' lk':'')+(sel===n.id?' sel':'');
+  el.className='node c-'+(n.color||'yellow')+(n.parent?'':' root')+(vis?' media':'')+(n.shape?' shape':'')+(fr?' frame':'')+(n.ftext?' ftext':'')+(n.lk?' lk':'')+(sel===n.id?' sel':'')+(msel.size>1&&msel.has(n.id)?' msel':'');
   el.dataset.id=n.id;el.style.left=n.x+'px';el.style.top=n.y+'px';el.style.width=(n.w||200)+'px';if(n.shape)el.style.height=Math.max(1,n.h||1)+'px';
   if(n.rot&&!fr)el.style.transform=`rotate(${n.rot}deg)`;if(n.op!=null&&n.op<1)el.style.opacity=n.op;
   const hs=boxy&&!n.lk?(n.ftext?['w','e']:['nw','n','ne','e','se','s','sw','w']).map(h=>`<i class="hd" data-h="${h}"></i>`).join('')+(fr?'':'<i class="roth" title="Повернуть (Shift — без шага 15°)"></i>'):'';
@@ -1541,7 +1544,7 @@ function nodeEl(n){
   if(n.media){const mb=el.querySelector('.mbox');mb.appendChild(mediaEl(n.media,true));const open=e=>{e.stopPropagation();openLb(n.media,{node:n.id})};el.querySelector('.zm').addEventListener('click',open);mb.addEventListener('dblclick',open)}
   const add=el.querySelector('.add');if(add)add.addEventListener('click',e=>{e.stopPropagation();addChild(n.id)});
   /* на телефоне касание невыбранного блока не двигает и не открывает клавиатуру: первое касание выбирает, сдвиг пальцем двигает поле */
-  el.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')select(n.id)});
+  el.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;if(e.shiftKey&&!e.target.closest('.txt:focus,.ctbl')){e.preventDefault();const s=new Set(msel.size?msel:(sel?[sel]:[]));if(s.has(n.id))s.delete(n.id);else s.add(n.id);setMulti([...s],[...mInk]);return}select(n.id)});
   el.addEventListener('click',e=>{if(e.target.closest('.nadd,.zm,.add'))return;if(sel!==n.id)select(n.id)});
   el.querySelector('.grip').addEventListener('pointerdown',e=>startNodeDrag(e,n));
   if(n.shape&&n.shape.k==='frame'){const tl=document.createElement('div');tl.className='ftitle';tl.textContent=(n.text||'Лист')+(n.lk?' 🔒':'');tl.title='Тяни, чтобы двигать лист вместе со всем, что на нём. Двойной клик — переименовать';el.appendChild(tl);tl.addEventListener('pointerdown',e=>startNodeDrag(e,n));
@@ -1600,7 +1603,15 @@ function drawLinks(){
   svg.innerHTML=html;
 }
 function isTouchUI(){return matchMedia('(pointer:coarse)').matches}
+/* множественный выбор, как в Figma: рамкой по пустому месту, Shift+клик, Ctrl+A */
+let msel=new Set(),mInk=new Set();
+function mselDraw(){world.querySelectorAll('.node').forEach(e=>e.classList.toggle('msel',msel.size>1&&msel.has(e.dataset.id)));renderWInk()}
+function setMulti(ids,ink,add){if(!add){msel=new Set();mInk=new Set()}ids.forEach(i=>msel.add(i));(ink||[]).forEach(i=>mInk.add(i));const last=[...msel].pop()||null;
+  if(sel!==last){const k=msel;select(last);msel=k}mselDraw();updateTools();const n=msel.size,m=mInk.size;if(n+m>1)toast(`Выбрано: ${n?n+' '+plural(n,'объект','объекта','объектов'):''}${n&&m?' и ':''}${m?m+' '+plural(m,'линия','линии','линий'):''}. Delete — удалить, тяни — переместить`,null,null,2200)}
 function select(id){
+  if(msel.size>1&&id&&msel.has(id)){if(sel!==id){sel=id;world.querySelectorAll('.node').forEach(e=>e.classList.toggle('sel',e.dataset.id===id));updateTools()}return}
+  if(msel.size||mInk.size){const had=mInk.size;msel=new Set();mInk=new Set();world.querySelectorAll('.node.msel').forEach(e=>e.classList.remove('msel'));if(had)renderWInk()}
+  if(id)msel.add(id);
   if(sel===id)return;const prev=sel;sel=id;disarm();if(prev&&newIds.has(prev))setTimeout(()=>dropIfEmpty(prev),0);
   const tu=isTouchUI();world.querySelectorAll('.node').forEach(e=>{const on=e.dataset.id===id;e.classList.toggle('sel',on);if(tu){const t=e.querySelector(':scope>.txt'),m=nodeById(e.dataset.id);if(t&&m)t.contentEditable=String(!m.lk&&on);if(m&&m.table)e.querySelectorAll('.ctbl td,.ctbl th').forEach(c=>c.contentEditable=String(!m.lk&&on))}});updateTools();cRenderLayers();
 }
@@ -1670,6 +1681,7 @@ $('#addMedia').onclick=()=>pickMedia({canvas:true});
 let armed=null;
 function disarm(){armed=null;const d=$('#delNode');d.classList.remove('armed');d.textContent='Удалить'}
 $('#delNode').onclick=()=>{
+  if(msel.size>1||mInk.size){delMulti();return}
   if(!sel)return;
   const locked=family(sel).map(nodeById).filter(n=>n&&n.lk);if(locked.length){toast('Блок закреплён — сначала открепи его (замок)');return}
   if(armed!==sel){armed=sel;const d=$('#delNode');d.classList.add('armed');const f=family(sel).length;d.textContent=f>1?`Удалить ${f}?`:'Точно?';return}
@@ -1700,13 +1712,15 @@ $('#fit').onclick=fit;
 function snapV(v){return prefs.grid?Math.round(v/12)*12:Math.round(v)}
 
 function startNodeDrag(e,n){
-  if(e.target.closest('.add,.zm')||cTool!=='select')return;
+  if(e.target.closest('.add,.zm')||cTool!=='select'||e.shiftKey)return;
+  if(e.button===1||spaceDown)return;
   if(e.pointerType==='touch'&&sel!==n.id)return;
   e.preventDefault();e.stopPropagation();select(n.id);
   if(n.lk){toast('Блок закреплён — открепи его замком, чтобы двигать',null,null,2200);return}
   const grip=e.currentTarget;try{grip.setPointerCapture(e.pointerId)}catch(err){}
-  let ids=family(n.id).filter(id=>!nodeById(id).lk),inkIn=[];
-  if(n.shape&&n.shape.k==='frame'){const fb={x:n.x,y:n.y,w:n.w,h:n.h},inside=b=>b.x>=fb.x-2&&b.y>=fb.y-2&&b.x+b.w<=fb.x+fb.w+2&&b.y+b.h<=fb.y+fb.h+2;
+  const grp=msel.size>1&&msel.has(n.id);
+  let ids=(grp?[...new Set([...msel].flatMap(i=>family(i)))]:family(n.id)).filter(id=>nodeById(id)&&!nodeById(id).lk),inkIn=grp?S.canvas.ink.filter((s,i)=>mInk.has(i)).map(s=>({s,p:s.p.slice()})):[];
+  if(!grp&&n.shape&&n.shape.k==='frame'){const fb={x:n.x,y:n.y,w:n.w,h:n.h},inside=b=>b.x>=fb.x-2&&b.y>=fb.y-2&&b.x+b.w<=fb.x+fb.w+2&&b.y+b.h<=fb.y+fb.h+2;
     S.canvas.nodes.forEach(m=>{if(m!==n&&!m.lk&&!(m.shape&&m.shape.k==='frame')&&inside(boxOf(m))&&!ids.includes(m.id))ids.push(m.id)});
     inkIn=S.canvas.ink.filter(s=>{if(!s.p)return false;for(let i=0;i<s.p.length;i+=3)if(s.p[i]<fb.x||s.p[i]>fb.x+fb.w||s.p[i+1]<fb.y||s.p[i+1]>fb.y+fb.h)return false;return true}).map(s=>({s,p:s.p.slice()}))}
   const start=ids.map(id=>{const m=nodeById(id);return{m,x:m.x,y:m.y,el:world.querySelector(`.node[data-id="${id}"]`)}});
@@ -1734,22 +1748,38 @@ stage.addEventListener('pointerdown',e=>{
   const nd=e.target.closest('.node'),tpan=nd&&e.pointerType==='touch'&&nd.dataset.id!==sel&&!e.target.closest('.nadd,.zm,.hd,.roth,.rz,.add');
   if(nd&&!onFrameBody(e)&&!tpan)return;
   if(document.activeElement&&document.activeElement.isContentEditable)document.activeElement.blur();
+  /* мышь: левая кнопка по пустому месту (или по фону листа) — рамка выделения; поле двигают пробел, средняя кнопка, «Рука» и колесо */
+  if(e.pointerType!=='touch'&&e.button===0&&!spaceDown&&cTool==='select'){const r=stage.getBoundingClientRect();marq={x0:e.clientX,y0:e.clientY,x:e.clientX,y:e.clientY,add:e.shiftKey,frame:nd&&nd.dataset.id,r};try{stage.setPointerCapture(e.pointerId)}catch(err){}return}
   if(!tpan)select(nd?nd.dataset.id:null);
   try{stage.setPointerCapture(e.pointerId)}catch(err){}pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pts.size===1){pan={x:e.clientX,y:e.clientY,vx:V().x,vy:V().y};stage.classList.add('panning')}
   else if(pts.size===2){const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};pan=null}
 });
+let marq=null;
 stage.addEventListener('pointermove',e=>{
+  if(marq){marq.x=e.clientX;marq.y=e.clientY;const m=$('#marq'),r=marq.r,L=Math.min(marq.x0,marq.x),T=Math.min(marq.y0,marq.y),W=Math.abs(marq.x-marq.x0),H=Math.abs(marq.y-marq.y0);if(W+H>4){m.hidden=false;Object.assign(m.style,{left:(L-r.left)+'px',top:(T-r.top)+'px',width:W+'px',height:H+'px'})}return}
   if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&pts.size===2){const [a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);if(d>0){zoomAt(d/pinch.d,(a.x+b.x)/2,(a.y+b.y)/2);pinch.d=d}}
   else if(pan){const v=V();v.x=pan.vx+(e.clientX-pan.x);v.y=pan.vy+(e.clientY-pan.y);applyView()}
 });
+function marqEnd(e){const g=marq;marq=null;$('#marq').hidden=true;if(!g)return;
+  if(Math.abs(g.x-g.x0)+Math.abs(g.y-g.y0)<=4){if(g.frame)select(g.frame);else if(!g.add)select(null);return}
+  const [ax,ay]=screenToWorld(Math.min(g.x0,g.x),Math.min(g.y0,g.y)),[bx,by]=screenToWorld(Math.max(g.x0,g.x),Math.max(g.y0,g.y));
+  const ids=S.canvas.nodes.filter(n=>{if(n.lk)return false;const b=boxOf(n);if(n.shape&&n.shape.k==='frame')return b.x>=ax&&b.y>=ay&&b.x+b.w<=bx&&b.y+b.h<=by;return b.x<bx&&b.x+b.w>ax&&b.y<by&&b.y+b.h>ay}).map(n=>n.id);
+  const ink=[];S.canvas.ink.forEach((s,i)=>{if(s.t==='erase'||!s.p)return;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(let k=0;k<s.p.length;k+=3){x0=Math.min(x0,s.p[k]);y0=Math.min(y0,s.p[k+1]);x1=Math.max(x1,s.p[k]);y1=Math.max(y1,s.p[k+1])}if(x0>=ax&&y0>=ay&&x1<=bx&&y1<=by)ink.push(i)});
+  if(!ids.length&&!ink.length){if(!g.add)select(null);return}setMulti(ids,ink,g.add)}
+stage.addEventListener('pointerup',e=>{if(marq)marqEnd(e)});stage.addEventListener('pointercancel',()=>{marq=null;$('#marq').hidden=true});
+/* удалить всё выбранное разом */
+function delMulti(){const ids=new Set([...msel].flatMap(i=>family(i)).filter(i=>{const n=nodeById(i);return n&&!n.lk})),inkN=mInk.size;if(!ids.size&&!inkN)return false;
+  const gone=S.canvas.nodes.filter(n=>ids.has(n.id));S.canvas.nodes=S.canvas.nodes.filter(n=>!ids.has(n.id));S.canvas.links=S.canvas.links.filter(l=>!ids.has(l.a)&&!ids.has(l.b));S.canvas.ink=S.canvas.ink.filter((s,i)=>!mInk.has(i));
+  msel=new Set();mInk=new Set();sel=null;disarm();renderNodes();touch();purgeLater(gone.filter(n=>n.media).map(n=>n.media));toast(`Удалено: ${gone.length?gone.length+' '+plural(gone.length,'объект','объекта','объектов'):''}${gone.length&&inkN?' и ':''}${inkN?inkN+' '+plural(inkN,'линия','линии','линий'):''}`,'Отменить',()=>stepUndo(true));return true}
 function endPt(e){if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(pts.size===0){pan=null;stage.classList.remove('panning');viewChanged()}else if(pts.size===1){const p=[...pts.values()][0];pan={x:p.x,y:p.y,vx:V().x,vy:V().y}}}
 stage.addEventListener('pointerup',endPt);stage.addEventListener('pointercancel',endPt);
 stage.addEventListener('dblclick',e=>{if((e.target.closest('.node')&&!onFrameBody(e))||cTool!=='select')return;const [x,y]=screenToWorld(e.clientX,e.clientY);addRootAt(x,y)});
 stage.addEventListener('wheel',e=>{
   e.preventDefault();
   if(e.ctrlKey||e.metaKey)zoomAt(Math.exp(-e.deltaY*.0025),e.clientX,e.clientY);
+  else if(e.shiftKey&&!e.deltaX){const v=V();v.x-=e.deltaY;applyView()}
   else{const v=V();v.x-=e.deltaX;v.y-=e.deltaY;applyView()}
   viewChanged();
 },{passive:false});
@@ -1949,9 +1979,14 @@ document.addEventListener('keydown',e=>{
   if($('#canvas').hidden||openSheet||e.ctrlKey||e.metaKey||e.altKey)return;const a=document.activeElement;if(a&&(a.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))return;
   const key=e.code.replace(/^Key/,'').toLowerCase(),m={v:'select',h:'hand',p:'pen',b:'brush',m:'marker',n:'pencil',e:'eraser',f:'frame',c:'link',t:'text'}[key],sh={r:'rect',o:'ellipse',l:'line',a:'arrow'}[key];
   if(sh){cShapeK=sh;setCTool('shape');e.preventDefault()}else if(key==='g'){$('#cEls').hidden=false;renderEls();e.preventDefault()}else if(m){setCTool(m);e.preventDefault()}
-  else if((e.key==='Delete'||e.key==='Backspace')&&sel){e.preventDefault();$('#delNode').click()}
-  else if(e.key==='Escape'){$('#cEls').hidden=true;if(cTool!=='select')setCTool('select')}
+  else if(e.key==='Delete'||e.key==='Backspace'){if(msel.size>1||mInk.size){e.preventDefault();delMulti()}else if(sel){e.preventDefault();if(armed!==sel)$('#delNode').click();$('#delNode').click()}}
+  else if(e.key==='Escape'){$('#cEls').hidden=true;if(cTool!=='select')setCTool('select');select(null)}
 });
+/* Ctrl+A — выбрать всё на холсте; пробел — временная «рука» */
+document.addEventListener('keydown',e=>{if($('#canvas').hidden||openSheet)return;const a=document.activeElement;if(a&&(a.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))return;
+  if((e.ctrlKey||e.metaKey)&&e.code==='KeyA'){e.preventDefault();setMulti(S.canvas.nodes.filter(n=>!n.lk).map(n=>n.id),S.canvas.ink.map((s,i)=>s.t!=='erase'&&s.p?i:-1).filter(i=>i>=0))}
+  if(e.code==='Space'&&!e.repeat){spaceDown=true;stage.classList.add('space');e.preventDefault()}});
+document.addEventListener('keyup',e=>{if(e.code==='Space')stage.classList.remove('space')});
 
 /* ---------- трекер: привычки ---------- */
 const WD=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -2194,6 +2229,7 @@ const HELP=[
    '<b>Файлы.</b> Фото и видео показываются прямо в блоке, у PDF — первая страница, у документов — значок с именем. ⤢ открывает крупно: PDF листается, документ Word показывается текстом, презентацию можно открыть во вкладке «Презентации», любой файл — скачать.',
    '<b>Таблица.</b> «+ Таблица» на панели ставит таблицу прямо на холст: ячейки правятся на месте, Tab — следующая ячейка (в последней — новая строка). Внизу — «+ Строка», «+ Столбец», удаление, шапка и 7 цветов.',
    '<b>На телефоне.</b> Палец по полю или по невыбранному блоку двигает холст — блоки случайно не съезжают. Касание выбирает блок; выбранный тянется за полоску сверху, размер — за уголок, второе касание по тексту — правка. Синие «+» по сторонам добавляют связанный блок; пустой блок убирается сам. Над клавиатурой — «Удалить блок», «+ Блок ниже», «Готово».',
+   '<b>Мышь, как в Figma.</b> Левая кнопка по пустому месту — рамка выделения (с Shift — добавить к выбранному), Shift+клик — добавить или убрать блок, Ctrl+A — выбрать всё. Delete удаляет всё выбранное разом (Ctrl+Z вернёт), выбранное тянется вместе. Поле: колесо — вверх-вниз, Shift + колесо — вбок, Ctrl + колесо — масштаб, пробел или средняя кнопка + мышь — двигать.',
    '<b>Слои и замок.</b> «Слои» открывают слева список всех блоков с поиском: клик — перейти к блоку, замок — закрепить. Закреплённый блок нельзя сдвинуть, изменить или удалить, пока не откроешь замок. Колесо мыши — прокрутка, Ctrl + колесо или щипок — масштаб, «Показать всё» вписывает всё в экран.']],
  ['Трекер',['Клетка дня — отметить привычку','Поле «Новая задача» — добавить; карточку тянуть за точки','⋯ на карточке — срок, напоминание, повтор, приоритет, метки, чек-лист, файлы','Поиск и фильтры над доской'],
   ['<b>Привычки.</b> Таблица показывает последние 7 дней; клик по клетке ставит или снимает отметку. «Серия» — сколько дней подряд выполнено, «Неделя» — процент за 7 дней. × удаляет привычку (нужно нажать дважды).',
