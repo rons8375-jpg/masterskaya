@@ -62827,9 +62827,9 @@ o=n
 s=6
 return A.j(o.Tm(B.ete),$async$axk)
 case 6:s=7
-return A.j(o.Tr(0.8),$async$axk)
+return A.j(o.Tr(0.6),$async$axk)
 case 7:s=8
-return A.j(o.Tq(new A.aHX("sounds/done.mp3",null)),$async$axk)
+return A.j(o.Tq(new A.aHX("sounds/done.wav",null)),$async$axk)
 case 8:q=1
 s=5
 break
