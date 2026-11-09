@@ -16,6 +16,8 @@ self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
   if (r.method === 'POST' && u.origin === location.origin && u.pathname.endsWith('/share')) { e.respondWith(takeShare(r)); return }
   if (r.method !== 'GET') return;
+  /* /app/ — новая «Мастерская» (Flutter) со своим service worker: не трогаем */
+  if (u.origin === location.origin && u.pathname.includes('/app/')) return;
   if (u.origin === location.origin) {
     /* страница: сначала сеть (чтобы приходили обновления), без сети — из кэша */
     if (r.mode === 'navigate') { e.respondWith(fetch(r).then(res => { const c = res.clone(); caches.open(V).then(x => x.put('./index.html', c)); return res }).catch(() => caches.match('./index.html'))); return }
