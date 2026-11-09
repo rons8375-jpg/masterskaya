@@ -1,0 +1,7 @@
+{
+  "version": "1.76.0",
+  "build": 76,
+  "notes": "",
+  "windows": "files/Masterskaya-Windows.zip",
+  "android": "files/Masterskaya-Android.apk"
+}
