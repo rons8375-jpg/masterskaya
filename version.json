@@ -1,7 +1,7 @@
 {
-  "version": "1.76.0",
-  "build": 76,
-  "notes": "",
+  "version": "1.77.0",
+  "build": 77,
+  "notes": "Проще на телефоне: разделы внизу и свайп, все инструменты холста — под кнопкой «Инструменты». Обновление ставится поверх — доски и задачи сохранятся.",
   "windows": "files/Masterskaya-Windows-Setup.exe",
   "android": "files/Masterskaya-Android.apk"
 }
