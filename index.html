@@ -57,6 +57,7 @@ h2{font-size:clamp(26px,3.4vw,36px);margin:0 0 8px;font-weight:800;letter-spacin
 .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .feat{padding:20px;border-radius:18px;background:var(--glass);border:1px solid var(--line)}
 .feat b{display:block;font-size:17px;margin-bottom:4px}
+.support{text-align:center;padding:32px 24px}.support b{font-size:22px}.support span{display:block;max-width:640px;margin:0 auto 18px;color:var(--muted)}.support .btns{justify-content:center}.support b{color:#fff}
 .feat span{color:var(--muted);font-size:15px}
 .shots{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory}
 .shots img{height:440px;border-radius:24px;border:1px solid var(--line);scroll-snap-align:start;flex:none}
@@ -73,7 +74,7 @@ footer a{color:var(--muted)}
 <body>
 <header><div class="wrap">
   <a class="brand" href="./"><img src="icon-192.png" alt="">Мастерская</a>
-  <nav><a href="#download">Скачать</a><a class="hide" href="#features">Возможности</a><a class="hide" href="#privacy">Приватность</a><a class="hide" href="#faq">Вопросы</a><a href="app/">Открыть в браузере</a></nav>
+  <nav><a href="#download">Скачать</a><a class="hide" href="#features">Возможности</a><a class="hide" href="#privacy">Приватность</a><a class="hide" href="#faq">Вопросы</a><a class="hide" href="#support">Поддержать</a><a href="app/">Открыть в браузере</a></nav>
 </div></header>
 
 <main class="wrap">
@@ -100,7 +101,7 @@ footer a{color:var(--muted)}
         <h3>Windows</h3>
         <p>Программа для компьютера: Windows 10 и 11, 64-бит. Обычная установка: «Далее» → «Установить», значок на рабочем столе.</p>
         <a class="btn primary" href="files/Masterskaya-Windows-Setup.exe" download>Скачать для Windows</a>
-        <small>Установщик · 20 МБ · версия 1.79 · <a href="files/Masterskaya-Windows.zip" download>архив без установки</a></small>
+        <small>Установщик · 20 МБ · версия 1.80 · <a href="files/Masterskaya-Windows.zip" download>архив без установки</a></small>
       </div>
       <div class="card" data-os="android">
         <span class="tag">Ваше устройство</span>
@@ -108,7 +109,7 @@ footer a{color:var(--muted)}
         <h3>Android</h3>
         <p>Android 7 и новее. Скоро — в RuStore; пока можно скачать файл и установить (разрешите установку из браузера).</p>
         <a class="btn primary" href="files/Masterskaya-Android.apk" download>Скачать APK</a>
-        <small>APK · 51 МБ · версия 1.79</small>
+        <small>APK · 51 МБ · версия 1.80</small>
       </div>
       <div class="card" data-os="ios">
         <span class="tag">Ваше устройство</span>
@@ -184,11 +185,19 @@ footer a{color:var(--muted)}
 
   <section id="news">
     <h2>Что нового</h2>
-    <p class="sub">Версия 1.79 — ноябрь 2026</p>
+    <p class="sub">Версия 1.80 — ноябрь 2026</p>
     <div class="feats">
       <div class="feat"><b>Перенос из MindMeister</b><span>Карты из MindMeister, XMind и FreeMind открываются на холсте — бесплатно и без лимитов.</span></div>
       <div class="feat"><b>Красивые карты мыслей</b><span>Плавные цветные ветки, «Выровнять ветки» одной кнопкой, заметка и ссылка прямо на блоке.</span></div>
       <div class="feat"><b>Удобнее на телефоне</b><span>Разделы — внизу экрана, листаются свайпом; все инструменты холста — под одной кнопкой «Инструменты».</span></div>
+    </div>
+  </section>
+
+  <section id="support">
+    <div class="feat support">
+      <b>♥ Поддержать «Мастерскую»</b>
+      <span>Мастерскую делает один человек. Приложение бесплатное, без рекламы и без лимитов на доски — и таким останется. Если оно помогает учиться и работать, можно поддержать любой суммой: это время на новые функции, версии для iPhone и Mac, сайт и магазины.</span>
+      <div class="btns"><a class="btn primary" href="https://yoomoney.ru/to/4100119536655947" target="_blank" rel="noopener">Поддержать через ЮMoney</a></div>
     </div>
   </section>
 
